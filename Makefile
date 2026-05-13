@@ -114,6 +114,17 @@ register: _require-project _require-image ## Register project into daemon
 	 SCRIPT_DIR="$(SCRIPT_DIR)" \
 	 $(SCRIPT_DIR)/crg-register.sh "$(PROJECT_PATH)" "$(ALIAS)"
 
+mcp-add: _require-project ## Write .mcp.json to target project (enable MCP for that project)
+	@mkdir -p "$(PROJECT_PATH)"
+	@printf '{\n  "mcpServers": {\n    "code-review-graph": {\n      "command": "%s",\n      "args": ["%s"]\n    }\n  }\n}\n' \
+		"$(SCRIPT_DIR)/crg-mcp.sh" "$(PROJECT_PATH)" > "$(PROJECT_PATH)/.mcp.json"
+	@echo "[crg] .mcp.json written: $(PROJECT_PATH)/.mcp.json"
+	@echo "[crg] NOTE: path is machine-specific — add .mcp.json to .gitignore if not already"
+
+mcp-remove: _require-project ## Remove .mcp.json from target project
+	@rm -f "$(PROJECT_PATH)/.mcp.json"
+	@echo "[crg] .mcp.json removed: $(PROJECT_PATH)/.mcp.json"
+
 daemon-up: _require-image ## Start daemon (auto-rebuild on file changes)
 	docker compose up -d crg-daemon
 
