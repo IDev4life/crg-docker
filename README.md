@@ -9,11 +9,12 @@ crg-docker/
 ├── Dockerfile          # Image definition
 ├── docker-compose.yml  # Service definitions (crg + crg-daemon)
 ├── Makefile            # CLI gọn: make build, make update, ...
-├── crg-mcp.sh          # Wrapper cho Claude Code MCP (stdio)
+├── crg-mcp.sh          # MCP server wrapper (stdio — dùng bởi Claude Code)
+├── crg-mcp-add.sh      # Ghi/xóa .mcp.json vào target project
 ├── crg-register.sh     # Đăng ký project vào daemon (multi-graph)
 ├── crg-build.sh        # Full build graph
 ├── crg-update.sh       # Incremental update graph
-├── crg-watch.sh        # Auto-update graph khi file thay đổi
+├── crg-watch.sh        # Auto-update graph khi file thay đổi (foreground)
 ├── crg-viz.sh          # Export visualization ra HTML
 ├── data/               # Tất cả state (gitignored)
 │   ├── .registry/
@@ -41,6 +42,8 @@ make viz     PROJECT=~/dev/my-app   # Export visualization
 make status  PROJECT=~/dev/my-app   # Xem graph status
 make list                           # Liệt kê projects đã build
 make clean   PROJECT=~/dev/my-app   # Xóa graph data
+make mcp-add    PROJECT=~/dev/my-app   # Ghi .mcp.json vào project
+make mcp-remove PROJECT=~/dev/my-app   # Xóa .mcp.json khỏi project
 ```
 
 ---
@@ -59,8 +62,8 @@ make image
 # Build graph
 make build PROJECT=~/dev/my-app
 
-# Add MCP vào Claude Code
-claude mcp add code-review-graph -- /path/to/crg-docker/crg-mcp.sh ~/dev/my-app
+# Ghi .mcp.json vào project → Claude Code tự load MCP khi mở project đó
+make mcp-add PROJECT=~/dev/my-app
 
 # Update graph khi code thay đổi
 make update PROJECT=~/dev/my-app
@@ -130,17 +133,32 @@ make daemon-logs
 
 ### Add MCP vào Claude Code
 
-Mỗi project cần 1 MCP instance riêng:
+Mỗi project cần 1 `.mcp.json` riêng — Claude Code tự load khi mở project đó:
 
 ```bash
-claude mcp add code-review-graph -- /path/to/crg-docker/crg-mcp.sh ~/projects/my-app
+make mcp-add PROJECT=~/projects/my-app
+make mcp-add PROJECT=~/projects/other-api
 ```
 
-Dùng nhiều project trong cùng session Claude Code — thêm MCP với tên khác nhau:
+Script ghi `.mcp.json` vào root của target project:
+
+```json
+{
+  "mcpServers": {
+    "code-review-graph": {
+      "command": "/path/to/crg-docker/crg-mcp.sh",
+      "args": ["/path/to/project"]
+    }
+  }
+}
+```
+
+> **Lưu ý:** `.mcp.json` chứa absolute path — machine-specific. Thêm vào `.gitignore` nếu project dùng git team.
+
+Muốn tắt MCP:
 
 ```bash
-claude mcp add crg-my-app    -- /path/to/crg-docker/crg-mcp.sh ~/projects/my-app
-claude mcp add crg-other-api -- /path/to/crg-docker/crg-mcp.sh ~/projects/other-api
+make mcp-remove PROJECT=~/projects/my-app
 ```
 
 ---
