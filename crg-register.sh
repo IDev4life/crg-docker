@@ -56,6 +56,7 @@ mkdir -p "${SCRIPT_DIR}/data/.registry"
 
 # Register vào ./data/.registry/ (registry + watch.toml)
 docker run --rm \
+  -v "${PROJECTS_DIR}:/workspace:ro" \
   -v "${SCRIPT_DIR}/data/.registry:/root/.code-review-graph" \
   -v "${SCRIPT_DIR}/data:/data" \
   -e CRG_CONTAINER_PATH="$CONTAINER_PATH" \
