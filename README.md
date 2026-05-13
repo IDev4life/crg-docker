@@ -43,8 +43,11 @@ make viz     PROJECT=~/dev/my-app   # Export visualization
 make status  PROJECT=~/dev/my-app   # Xem graph status
 make list                           # Liệt kê projects đã build
 make clean   PROJECT=~/dev/my-app   # Xóa graph data
-make mcp-add    PROJECT=~/dev/my-app   # Ghi .mcp.json vào project
-make mcp-remove PROJECT=~/dev/my-app   # Xóa .mcp.json khỏi project
+make mcp-add    PROJECT=~/dev/my-app                    # Thêm graph project vào .mcp.json
+make mcp-add    PROJECT=~/dev/my-app GRAPH=~/dev/other  # Cross-ref graph repo khác
+make mcp-remove PROJECT=~/dev/my-app                    # Xóa graph chính
+make mcp-remove PROJECT=~/dev/my-app GRAPH=~/dev/other  # Xóa graph cụ thể
+make mcp-remove-all PROJECT=~/dev/my-app                # Xóa tất cả crg-*
 ```
 
 ---
@@ -137,18 +140,25 @@ make daemon-logs
 Mỗi project cần 1 `.mcp.json` riêng — Claude Code tự load khi mở project đó:
 
 ```bash
+# Graph chính project đó
 make mcp-add PROJECT=~/projects/my-app
-make mcp-add PROJECT=~/projects/other-api
+
+# Cross-reference: code ở my-app, tham khảo graph của other-api
+make mcp-add PROJECT=~/projects/my-app GRAPH=~/projects/other-api
 ```
 
-Script ghi `.mcp.json` vào root của target project:
+Kết quả `.mcp.json`:
 
 ```json
 {
   "mcpServers": {
-    "code-review-graph": {
+    "crg-my-app": {
       "command": "/path/to/crg-docker/crg-mcp.sh",
-      "args": ["/path/to/project"]
+      "args": ["/home/thomson/projects/my-app"]
+    },
+    "crg-other-api": {
+      "command": "/path/to/crg-docker/crg-mcp.sh",
+      "args": ["/home/thomson/projects/other-api"]
     }
   }
 }
@@ -159,7 +169,12 @@ Script ghi `.mcp.json` vào root của target project:
 Muốn tắt MCP:
 
 ```bash
-make mcp-remove PROJECT=~/projects/my-app
+# Xóa graph cụ thể
+make mcp-remove PROJECT=~/projects/my-app                        # xóa crg-my-app
+make mcp-remove PROJECT=~/projects/my-app GRAPH=~/projects/other-api  # xóa crg-other-api
+
+# Xóa tất cả crg-* entries
+make mcp-remove-all PROJECT=~/projects/my-app
 ```
 
 ---

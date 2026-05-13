@@ -60,7 +60,7 @@ _require-image:
 
 # ── Targets ─────────────────────────────────────────────
 
-.PHONY: image build update watch viz status register daemon-up daemon-down daemon-logs clean list help
+.PHONY: image build update watch viz status register daemon-up daemon-down daemon-logs clean list mcp-add mcp-remove mcp-remove-all help
 
 image: ## Build Docker image
 	docker build -t $(IMAGE) $(SCRIPT_DIR)
@@ -114,11 +114,22 @@ register: _require-project _require-image ## Register project into daemon
 	 SCRIPT_DIR="$(SCRIPT_DIR)" \
 	 $(SCRIPT_DIR)/crg-register.sh "$(PROJECT_PATH)" "$(ALIAS)"
 
-mcp-add: _require-project ## Add code-review-graph to .mcp.json of target project
+mcp-add: _require-project ## Add code-review-graph to .mcp.json (GRAPH= for cross-ref)
+ifdef GRAPH
+	@$(SCRIPT_DIR)/crg-mcp-add.sh "$(PROJECT_PATH)" "$(shell realpath $(GRAPH))"
+else
 	@$(SCRIPT_DIR)/crg-mcp-add.sh "$(PROJECT_PATH)"
+endif
 
-mcp-remove: _require-project ## Remove code-review-graph from .mcp.json of target project
+mcp-remove: _require-project ## Remove code-review-graph from .mcp.json (GRAPH= or --all)
+ifdef GRAPH
+	@$(SCRIPT_DIR)/crg-mcp-remove.sh "$(PROJECT_PATH)" "$(shell realpath $(GRAPH))"
+else
 	@$(SCRIPT_DIR)/crg-mcp-remove.sh "$(PROJECT_PATH)"
+endif
+
+mcp-remove-all: _require-project ## Remove all crg-* entries from .mcp.json
+	@$(SCRIPT_DIR)/crg-mcp-remove.sh "$(PROJECT_PATH)" --all
 
 daemon-up: _require-image ## Start daemon (auto-rebuild on file changes)
 	docker compose up -d crg-daemon
