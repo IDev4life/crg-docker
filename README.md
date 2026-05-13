@@ -10,7 +10,8 @@ crg-docker/
 ├── docker-compose.yml  # Service definitions (crg + crg-daemon)
 ├── Makefile            # CLI gọn: make build, make update, ...
 ├── crg-mcp.sh          # MCP server wrapper (stdio — dùng bởi Claude Code)
-├── crg-mcp-add.sh      # Ghi/xóa .mcp.json vào target project
+├── crg-mcp-add.sh      # Thêm code-review-graph vào .mcp.json của target project
+├── crg-mcp-remove.sh   # Xóa code-review-graph khỏi .mcp.json của target project
 ├── crg-register.sh     # Đăng ký project vào daemon (multi-graph)
 ├── crg-build.sh        # Full build graph
 ├── crg-update.sh       # Incremental update graph
