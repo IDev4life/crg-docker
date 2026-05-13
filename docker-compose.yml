@@ -12,8 +12,8 @@ services:
       - ./data:/data
     environment:
       # PROJECT phải được set: docker compose run -e PROJECT=my-app --rm crg <cmd>
-      - CRG_DATA_DIR=/data/${PROJECT:-}
-      - CRG_REPO_ROOT=/workspace/${PROJECT:-}
+      - CRG_DATA_DIR=/data/${PROJECT:?Set PROJECT env: docker compose run -e PROJECT=my-app --rm crg <cmd>}
+      - CRG_REPO_ROOT=/workspace/${PROJECT:?Set PROJECT env}
       # Tăng giới hạn nếu project lớn
       - CRG_MAX_IMPACT_NODES=500
       - CRG_MAX_IMPACT_DEPTH=3
@@ -28,12 +28,7 @@ services:
     volumes:
       - ${PROJECTS_DIR:-$HOME/projects}:/workspace:ro
       - ./data:/data
-      - crg-daemon-config:/root/.code-review-graph
+      - ./data/.registry:/root/.code-review-graph
     # Không set CRG_DATA_DIR — daemon dùng registry per-repo (xem crg-register.sh)
     command: ["crg-daemon", "start", "--foreground"]
     restart: unless-stopped
-
-volumes:
-  crg-daemon-config:
-    name: crg-daemon-config  # tên cố định, không phụ thuộc compose project name
-    driver: local

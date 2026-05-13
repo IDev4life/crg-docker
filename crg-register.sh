@@ -8,6 +8,7 @@
 # Sau khi register:
 #   - crg-daemon tự watch project này (auto-rebuild khi file thay đổi)
 #   - crg-mcp.sh đọc graph từ ./data/<alias>/graph.db
+#   - registry lưu tại ./data/.registry/ (visible trên host, backup cùng ./data/)
 #
 # PROJECTS_DIR phải là parent chứa project, và phải khớp với mount trong docker-compose.yml
 # Default: $HOME/projects
@@ -22,7 +23,7 @@ PROJECT_PATH=$(realpath "$PROJECT_PATH")
 ALIAS="${2:-$(basename "$PROJECT_PATH")}"
 
 # Validate project nằm trong PROJECTS_DIR
-if [[ "$PROJECT_PATH" != "${PROJECTS_DIR%/}"* ]]; then
+if [[ "$PROJECT_PATH" != "${PROJECTS_DIR%/}/"* ]]; then
   echo "[crg] ERROR: Project phải nằm trong PROJECTS_DIR."
   echo "[crg]   Project     : $PROJECT_PATH"
   echo "[crg]   PROJECTS_DIR: $PROJECTS_DIR"
@@ -49,33 +50,40 @@ if ! docker image inspect code-review-graph:local &>/dev/null; then
   docker build -t code-review-graph:local "${SCRIPT_DIR}"
 fi
 
-# Tạo data dir trên host
+# Tạo data dirs trên host
 mkdir -p "${SCRIPT_DIR}/data/${ALIAS}"
+mkdir -p "${SCRIPT_DIR}/data/.registry"
 
-# Register vào crg-daemon-config volume (registry + watch.toml)
+# Register vào ./data/.registry/ (registry + watch.toml)
 docker run --rm \
-  -v "crg-daemon-config:/root/.code-review-graph" \
+  -v "${SCRIPT_DIR}/data/.registry:/root/.code-review-graph" \
   -v "${SCRIPT_DIR}/data:/data" \
+  -e CRG_CONTAINER_PATH="$CONTAINER_PATH" \
+  -e CRG_ALIAS="$ALIAS" \
   code-review-graph:local \
   python3 -c "
+import os
 from pathlib import Path
 from code_review_graph.registry import Registry
 
+container_path = os.environ['CRG_CONTAINER_PATH']
+alias = os.environ['CRG_ALIAS']
+
 # Register vào registry với data_dir per-project
 r = Registry(Path('/root/.code-review-graph/registry.json'))
-entry = r.register('${CONTAINER_PATH}', alias='${ALIAS}', data_dir='/data/${ALIAS}')
+entry = r.register(container_path, alias=alias, data_dir=f'/data/{alias}')
 print(f'[crg] Registry: {entry}')
 
 # Add vào watch.toml để daemon tự watch
 toml_path = Path('/root/.code-review-graph/watch.toml')
 content = toml_path.read_text() if toml_path.exists() else ''
-if '${CONTAINER_PATH}' in content:
-    print('[crg] watch.toml: ${ALIAS} already registered')
+if container_path in content:
+    print(f'[crg] watch.toml: {alias} already registered')
 else:
-    new_entry = '\n[[repos]]\npath = \"${CONTAINER_PATH}\"\nalias = \"${ALIAS}\"\n'
+    new_entry = f'\n[[repos]]\npath = \"{container_path}\"\nalias = \"{alias}\"\n'
     toml_path.parent.mkdir(parents=True, exist_ok=True)
     toml_path.write_text(content + new_entry)
-    print('[crg] watch.toml: added ${ALIAS}')
+    print(f'[crg] watch.toml: added {alias}')
 "
 
 echo ""

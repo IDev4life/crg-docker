@@ -7,19 +7,40 @@ Link repo gốc: https://github.com/tirth8205/code-review-graph
 ```
 crg-docker/
 ├── Dockerfile          # Image definition
-├── docker-compose.yml  # Service definitions
-├── crg-build.sh        # Full build graph (lần đầu hoặc rebuild hoàn toàn)
-├── crg-update.sh       # Incremental update graph (chạy thủ công)
-├── crg-watch.sh        # Auto-update graph khi file thay đổi (1 project, foreground)
+├── docker-compose.yml  # Service definitions (crg + crg-daemon)
+├── Makefile            # CLI gọn: make build, make update, ...
+├── crg-mcp.sh          # Wrapper cho Claude Code MCP (stdio)
 ├── crg-register.sh     # Đăng ký project vào daemon (multi-graph)
+├── crg-build.sh        # Full build graph
+├── crg-update.sh       # Incremental update graph
+├── crg-watch.sh        # Auto-update graph khi file thay đổi
 ├── crg-viz.sh          # Export visualization ra HTML
-├── crg-mcp.sh          # Wrapper cho Claude Code MCP
-├── data/               # Graph data lưu local — mỗi project 1 subfolder (gitignored)
+├── data/               # Tất cả state (gitignored)
+│   ├── .registry/
+│   │   ├── registry.json   # danh sách repos đã register
+│   │   └── watch.toml      # config daemon
 │   ├── my-app/
 │   │   └── graph.db
 │   └── other-api/
 │       └── graph.db
+├── viz/                # HTML visualization output
 └── README.md
+```
+
+---
+
+## Quick Reference
+
+```bash
+make help               # Xem tất cả commands
+make image              # Build Docker image
+make build   PROJECT=~/dev/my-app    # Full build graph
+make update  PROJECT=~/dev/my-app   # Incremental update
+make watch   PROJECT=~/dev/my-app   # Auto-update (foreground)
+make viz     PROJECT=~/dev/my-app   # Export visualization
+make status  PROJECT=~/dev/my-app   # Xem graph status
+make list                           # Liệt kê projects đã build
+make clean   PROJECT=~/dev/my-app   # Xóa graph data
 ```
 
 ---
@@ -27,8 +48,7 @@ crg-docker/
 ## Bước 1 — Build image
 
 ```bash
-cd crg-docker/
-docker build -t code-review-graph:local .
+make image
 ```
 
 ---
@@ -37,16 +57,16 @@ docker build -t code-review-graph:local .
 
 ```bash
 # Build graph
-./crg-build.sh ~/dev/project/my-app
+make build PROJECT=~/dev/my-app
 
 # Add MCP vào Claude Code
-claude mcp add code-review-graph -- ~/dev/project/dev1sme/crg-docker/crg-mcp.sh ~/dev/project/my-app
+claude mcp add code-review-graph -- /path/to/crg-docker/crg-mcp.sh ~/dev/my-app
 
-# Update graph thủ công khi code thay đổi
-./crg-update.sh ~/dev/project/my-app
+# Update graph khi code thay đổi
+make update PROJECT=~/dev/my-app
 
 # Hoặc auto-watch (foreground)
-./crg-watch.sh ~/dev/project/my-app
+make watch PROJECT=~/dev/my-app
 ```
 
 ---
@@ -75,85 +95,84 @@ export PROJECTS_DIR=$HOME/projects
 ### Đăng ký project
 
 ```bash
-# Đăng ký my-app
-./crg-register.sh ~/projects/my-app
+# Đăng ký my-app (alias = tên folder)
+make register PROJECT=~/projects/my-app
 
 # Đăng ký với alias tuỳ chỉnh
-./crg-register.sh ~/projects/other-api my-api
+make register PROJECT=~/projects/other-api ALIAS=my-api
 ```
 
 Script tự động:
+
 - Thêm project vào `watch.toml` của daemon
 - Register data dir: `./data/<alias>/graph.db`
 
 ### Build graph lần đầu
 
 ```bash
-./crg-build.sh ~/projects/my-app
-./crg-build.sh ~/projects/other-api
+make build PROJECT=~/projects/my-app
+make build PROJECT=~/projects/other-api
 ```
 
 ### Start daemon
 
 ```bash
-docker compose up -d crg-daemon
+make daemon-up
 ```
 
 Daemon chạy ngầm, tự detect file thay đổi và rebuild graph.
+
+### Xem daemon logs
+
+```bash
+make daemon-logs
+```
 
 ### Add MCP vào Claude Code
 
 Mỗi project cần 1 MCP instance riêng:
 
 ```bash
-claude mcp add code-review-graph -- ~/dev/project/dev1sme/crg-docker/crg-mcp.sh ~/projects/my-app
+claude mcp add code-review-graph -- /path/to/crg-docker/crg-mcp.sh ~/projects/my-app
 ```
 
-Để dùng nhiều project trong cùng session Claude Code, thêm nhiều MCP với tên khác nhau:
+Dùng nhiều project trong cùng session Claude Code — thêm MCP với tên khác nhau:
 
 ```bash
-claude mcp add crg-my-app   -- ~/dev/project/dev1sme/crg-docker/crg-mcp.sh ~/projects/my-app
-claude mcp add crg-other-api -- ~/dev/project/dev1sme/crg-docker/crg-mcp.sh ~/projects/other-api
+claude mcp add crg-my-app    -- /path/to/crg-docker/crg-mcp.sh ~/projects/my-app
+claude mcp add crg-other-api -- /path/to/crg-docker/crg-mcp.sh ~/projects/other-api
 ```
 
 ---
 
-## Update graph thủ công
+## Quản lý graph
 
 ```bash
-# Incremental update (nhanh, chỉ parse file thay đổi)
-./crg-update.sh ~/projects/my-app
+# Xem projects đã build
+make list
+
+# Xem status 1 project
+make status PROJECT=~/projects/my-app
+
+# Incremental update (nhanh)
+make update PROJECT=~/projects/my-app
 
 # Full rebuild
-./crg-build.sh ~/projects/my-app
+make build PROJECT=~/projects/my-app
+
+# Xóa graph data
+make clean PROJECT=~/projects/my-app
 ```
 
 ---
 
-## Xem visualization (Web UI)
+## Visualization
 
 ```bash
-./crg-viz.sh ~/projects/my-app
-
-# Chỉ định output file
-./crg-viz.sh ~/projects/my-app ~/Desktop/my-app-graph.html
+make viz PROJECT=~/projects/my-app
 ```
 
-File HTML lưu vào `crg-docker/viz/<project-name>.html`.
-
----
-
-## Xem status graph
-
-```bash
-docker run --rm \
-  -v ~/projects/my-app:/workspace:ro \
-  -v "$(pwd)/data/my-app:/data" \
-  -e CRG_DATA_DIR=/data \
-  -e CRG_REPO_ROOT=/workspace \
-  code-review-graph:local \
-  code-review-graph status
-```
+File HTML lưu vào `crg-docker/viz/<project-name>.html`, tự mở browser.
 
 ---
 
@@ -162,7 +181,6 @@ docker run --rm \
 Nếu đang có `data/graph.db` từ setup cũ:
 
 ```bash
-# Tạo subfolder, move db vào đúng chỗ
 mkdir -p data/my-app
 mv data/graph.db data/my-app/graph.db
 ```
@@ -175,4 +193,4 @@ mv data/graph.db data/my-app/graph.db
 - Workspace mount `:ro` — container không thể sửa source code.
 - Project dùng git: chỉ index tracked files, gitignored files tự động bỏ qua.
 - Daemon và MCP share cùng `graph.db` — SQLite WAL mode handle concurrent read/write an toàn.
-- Daemon dùng volume `crg-daemon-config` (tên cố định) để lưu registry và watch.toml.
+- Registry và watch.toml lưu tại `./data/.registry/` — visible trên host, backup/reset cùng `./data/`.
