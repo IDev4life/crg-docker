@@ -11,9 +11,9 @@ services:
       # Persistent volume cho graph data (local bind mount)
       - ./data:/data
     environment:
-      # PROJECT phải được set: docker compose run -e PROJECT=my-app --rm crg <cmd>
-      - CRG_DATA_DIR=/data/${PROJECT:?Set PROJECT env: docker compose run -e PROJECT=my-app --rm crg <cmd>}
-      - CRG_REPO_ROOT=/workspace/${PROJECT:?Set PROJECT env}
+      # PROJECT phải được set khi dùng: docker compose run -e PROJECT=my-app --rm crg <cmd>
+      - CRG_DATA_DIR=/data/${PROJECT:-}
+      - CRG_REPO_ROOT=/workspace/${PROJECT:-}
       # Tăng giới hạn nếu project lớn
       - CRG_MAX_IMPACT_NODES=500
       - CRG_MAX_IMPACT_DEPTH=3
